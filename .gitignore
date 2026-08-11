@@ -1,0 +1,14 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (contém a chave de API - NUNCA suba isso!)
+.env
+backend/.env
+
+# Logs
+npm-debug.log*
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
