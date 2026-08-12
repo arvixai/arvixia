@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARVIX IA</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-mark">A</span>
+          <span class="logo-text">ARVIX <strong>IA</strong></span>
+        </div>
+      </div>
+
+      <button id="newChatBtn" class="new-chat-btn">
+        + Nova conversa
+      </button>
+
+      <div class="sidebar-footer">
+        <p>Assistente de IA</p>
+        <span id="statusDot" class="status-dot"></span>
+        <span id="statusText">verificando...</span>
+      </div>
+    </aside>
+
+    <main class="chat-area">
+
+      <header class="chat-header">
+        <h1>ARVIX IA</h1>
+        <p>Sua assistente inteligente</p>
+      </header>
+
+      <div id="messages" class="messages">
+        <div class="message assistant">
+          <div class="avatar assistant-avatar">A</div>
+
+          <div class="bubble">
+            Olá! Eu sou a <strong>ARVIX IA</strong>. Como posso te ajudar hoje?
+          </div>
+        </div>
+      </div>
+
+      <form id="chatForm" class="chat-input-area">
+
+        <textarea
+          id="userInput"
+          placeholder="Envie uma mensagem para a ARVIX IA..."
+          rows="1"
+          required
+        ></textarea>
+
+        <button
+          type="submit"
+          id="sendBtn"
+          aria-label="Enviar"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path
+              d="M4 12L20 4L13 20L11 13L4 12Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+
+      </form>
+
+      <p class="disclaimer">
+        A ARVIX IA pode cometer erros.
+        Verifique informações importantes.
+      </p>
+
+    </main>
+
+  </div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
