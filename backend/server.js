@@ -1,6 +1,8 @@
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
+const OpenAI = require("openai");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,73 +10,66 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// Teste do servidor
+app.get("/api/health", (req, res) => {
   res.json({
-    status: "online",
-    message: "ARVIX IA está funcionando!"
+    status: "ok",
+    keyConfigured: !!process.env.OPENAI_API_KEY
   });
 });
 
+// Chat
 app.post("/api/chat", async (req, res) => {
   try {
     const { messages } = req.body;
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
-        error: "Mensagens inválidas."
+        error: "Nenhuma mensagem foi enviada."
       });
     }
 
-    const texto = messages
-      .map(m => `${m.role}: ${m.content}`)
-      .join("\n");
-
-    const resposta = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Você é a ARVIX IA, uma assistente inteligente, profissional e prestativa. Responda em português do Brasil.
-
-${texto}`
-                }
-              ]
-            }
-          ]
-        })
-      }
-    );
-
-    const data = await resposta.json();
-
-    if (!resposta.ok) {
-      console.error(data);
+    if (!process.env.OPENAI_API_KEY) {
       return res.status(500).json({
-        error: "Erro na API do Gemini."
+        error: "Chave da OpenAI não configurada."
       });
     }
 
-    const reply =
-      data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Não consegui gerar uma resposta.";
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é a ARVIX IA, uma assistente de inteligência artificial profissional, educada, objetiva e prestativa. Responda sempre em português do Brasil."
+        },
+        ...messages
+      ]
+    });
+
+    const reply = completion.choices?.[0]?.message?.content;
+
+    if (!reply) {
+      return res.status(500).json({
+        error: "A OpenAI não retornou uma resposta."
+      });
+    }
 
     res.json({ reply });
 
   } catch (error) {
-    console.error("Erro:", error);
+    console.error("Erro da OpenAI:", error);
+
     res.status(500).json({
-      error: "Erro ao conectar com a IA."
+      error: error.message || "Erro ao conectar com a OpenAI."
     });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`ARVIX IA rodando em http://localhost:${PORT}`);
+  console.log(`🚀 ARVIX IA rodando na porta ${PORT}`);
 });
