@@ -1,100 +1,142 @@
-require("dotenv").config();
+const API_URL = "https://arvixia.onrender.com";
 
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
+const messagesEl = document.getElementById("messages");
+const form = document.getElementById("chatForm");
+const input = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const newChatBtn = document.getElementById("newChatBtn");
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+let history = [];
 
-app.use(cors());
-app.use(express.json());
-
-// Servir o frontend
-app.use(express.static(path.join(__dirname, "..", "frontend")));
-
-// Página principal
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
-});
-
-// Verificação do servidor
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    keyConfigured: !!process.env.GEMINI_API_KEY
-  });
-});
-
-// Chat da ARVIX
-app.post("/api/chat", async (req, res) => {
+async function checkHealth() {
   try {
-    const { messages } = req.body;
+    const res = await fetch(`${API_URL}/api/health`);
+    const data = await res.json();
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({
-        error: "Nenhuma mensagem foi enviada."
-      });
+    if (data.keyConfigured) {
+      statusDot.classList.add("online");
+      statusText.textContent = "online";
+    } else {
+      statusDot.classList.add("offline");
+      statusText.textContent = "API não configurada";
     }
-
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: "Chave do Gemini não configurada no arquivo .env."
-      });
-    }
-
-    const texto = messages
-      .map((message) => `${message.role}: ${message.content}`)
-      .join("\n");
-
-    const resposta = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text:
-                    "Você é a ARVIX IA, uma assistente de inteligência artificial profissional, educada, objetiva e prestativa. Responda sempre em português do Brasil.\n\n" +
-                    texto
-                }
-              ]
-            }
-          ]
-        })
-      }
-    );
-
-    const data = await resposta.json();
-
-    if (!resposta.ok) {
-      console.error("Erro do Gemini:", data);
-
-      return res.status(500).json({
-        error: data.error?.message || "Erro ao chamar o Gemini."
-      });
-    }
-
-    const reply =
-      data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Não consegui gerar uma resposta.";
-
-    res.json({ reply });
-
   } catch (error) {
-    console.error("Erro no servidor:", error);
+    statusDot.classList.add("offline");
+    statusText.textContent = "servidor offline";
+  }
+}
 
-    res.status(500).json({
-      error: "Erro interno ao conectar com a IA."
-    });
+checkHealth();
+
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 160) + "px";
+});
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    form.requestSubmit();
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 ARVIX IA rodando em http://localhost:${PORT}`);
+newChatBtn.addEventListener("click", () => {
+  history = [];
+  messagesEl.innerHTML = "";
+
+  addMessage(
+    "assistant",
+    "Olá! Eu sou a <strong>ARVIX IA</strong>. Como posso te ajudar hoje?"
+  );
+});
+
+function addMessage(role, htmlContent) {
+  const wrapper = document.createElement("div");
+  wrapper.className = `message ${role}`;
+
+  const avatar = document.createElement("div");
+  avatar.className =
+    `avatar ${role === "user" ? "user-avatar" : "assistant-avatar"}`;
+
+  avatar.textContent = role === "user" ? "V" : "A";
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.innerHTML = htmlContent;
+
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(bubble);
+
+  messagesEl.appendChild(wrapper);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  return bubble;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  addMessage("user", escapeHtml(text));
+
+  history.push({
+    role: "user",
+    content: text
+  });
+
+  input.value = "";
+  input.style.height = "auto";
+  sendBtn.disabled = true;
+
+  const typingBubble = addMessage(
+    "assistant",
+    '<span class="typing"><span></span><span></span><span></span></span>'
+  );
+
+  try {
+    const res = await fetch(`${API_URL}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messages: history
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      typingBubble.innerHTML =
+        `⚠️ ${escapeHtml(data.error || "Erro ao falar com a IA.")}`;
+      return;
+    }
+
+    typingBubble.innerHTML = escapeHtml(data.reply);
+
+    history.push({
+      role: "assistant",
+      content: data.reply
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    typingBubble.innerHTML =
+      "⚠️ Não foi possível conectar ao servidor.";
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
 });
